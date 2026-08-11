@@ -731,7 +731,7 @@ def _clutter(w: int, h: int, bars: np.ndarray, pool: np.ndarray,
 # the deck (turntable hardware, background image layer)
 
 # Nothing on the deck moves -- the platter turns, but it is rotationally
-# symmetric like the grooves, so the plinth, platter edge, spindle and tonearm
+# symmetric like the grooves, so the plinth, platter edge and tonearm
 # all live in the background image alongside the desk. The one place the deck
 # touches the animation is the tonearm's footprint over the vinyl: the wipe
 # glints stream in the layer above, so `_glint_mask` blanks them out under the
@@ -744,7 +744,6 @@ def _clutter(w: int, h: int, bars: np.ndarray, pool: np.ndarray,
 # else about the layout is negotiable.
 
 PLATTER_R = 1.045          # machined edge peeking out from under the record
-SPINDLE_R = 0.017          # inside HOLE_R, so a sliver of vinyl rings the pin
 
 PLINTH_CENTRE = (0.065, -0.10)
 PLINTH_HALF = (1.385, 1.42)
@@ -902,24 +901,6 @@ def _tonearm(dx: np.ndarray, dy: np.ndarray,
     return rgb, alpha, shadow
 
 
-def _spindle_over(rgb: np.ndarray, dx: np.ndarray, dy: np.ndarray,
-                  px: float) -> np.ndarray:
-    """The steel pin through the record, painted over the finished scene.
-
-    Drawn a shade smaller than the hole punched in the label frames, so what
-    rings the pin is the dark vinyl in the hole, never a misregistered edge.
-    """
-    rc = np.hypot(dx, dy)
-    a = 1.0 - _smoothstep(SPINDLE_R - 1.2 * px, SPINDLE_R + 1.2 * px, rc)
-    hl = np.exp(-((np.hypot(dx + 0.35 * SPINDLE_R, dy + 0.35 * SPINDLE_R)
-                   / (0.8 * SPINDLE_R)) ** 2))
-    lum = 0.26 + 0.60 * hl
-    # A rolled edge, darkening towards the rim like any polished pin.
-    lum *= 1.0 - 0.45 * _smoothstep(0.55 * SPINDLE_R, SPINDLE_R, rc)
-    pin = lum[..., None] * STEEL_RGB[None, None, :]
-    return rgb * (1.0 - a[..., None]) + pin * a[..., None]
-
-
 def render_desk(width: int, height: int, disc_size: int, opacity: float = 0.55,
                 sheen_deg: float = 35.0, sheen_rgb: np.ndarray | None = None,
                 seed: int = 7, light: float = 1.0, brightness: float = 1.0,
@@ -1006,7 +987,7 @@ def render_desk(width: int, height: int, disc_size: int, opacity: float = 0.55,
         # middle, and it holds still while the label turns around it. Punched a
         # shade smaller than the hole in the label frames, so if the two layers
         # ever drift a pixel apart it is dark vinyl that peeks out, not bright
-        # wood. On the deck the hole is filled by the spindle instead.
+        # wood. On the deck the hole stays dark vinyl instead.
         rr, _, px = _disc_geometry(d)
         disc[..., 3] *= _smoothstep(0.8 * HOLE_R - 1.5 * px, 0.8 * HOLE_R + 0.5 * px, rr)
     a = disc[..., 3:4]
@@ -1020,13 +1001,12 @@ def render_desk(width: int, height: int, disc_size: int, opacity: float = 0.55,
     rgb = _blur_rgb(rgb, blur * scale)
 
     if turntable:
-        # The arm and the spindle go on after the legibility blur: they are
-        # the nearest things to the viewer, in the same focal plane as the
-        # label that the logo layer keeps sharp.
+        # The arm goes on after the legibility blur: it is the nearest thing
+        # to the viewer, in the same focal plane as the label that the logo
+        # layer keeps sharp.
         arm_rgb, arm_a, arm_sh = _tonearm(dxn, dyn, pxn)
         rgb *= (1.0 - 0.30 * arm_sh * (1.0 - arm_a))[..., None]
         rgb = rgb * (1.0 - arm_a[..., None]) + arm_rgb * arm_a[..., None]
-        rgb = _spindle_over(rgb, dxn, dyn, pxn)
 
     # A whisper of grain, after the blur so it survives it. This is dither, not
     # decoration: the lamp pool and the shadow are long slow gradients across
