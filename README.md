@@ -1,7 +1,7 @@
 # kitty-vinyl
 
-A vinyl record spinning behind your kitty terminal, lying on a wooden desk,
-wearing the cover art of whatever Apple Music is playing.
+A vinyl record spinning on a turntable behind your kitty terminal, standing on
+a wooden desk, wearing the cover art of whatever Apple Music is playing.
 
 ```
 ./vinyl setup     # one-time: adds remote control to kitty.conf
@@ -22,10 +22,13 @@ background colour  ->  background image  ->  window logo  ->  your text
 
 That's two layers underneath the text, and the record splits across them:
 
-- **What stays still** — wood grain, whatever light falls across it, then the
-  grooves, band gaps, rim and specular sheen — is composited into a single
-  **background image** and uploaded exactly once. kitty has only one background
-  image layer, so it all has to travel together.
+- **What stays still** — wood grain, whatever light falls across it, the
+  clutter standing on it (a coffee mug, a pack of reds, a small plant), the deck
+  itself (plinth, platter edge, spindle, tonearm), then the grooves, band gaps,
+  rim and specular sheen — is composited into a single **background image** and
+  uploaded exactly once. kitty has only one background image layer, so it all
+  has to travel together. The whole turntable qualifies: the platter turns, but
+  it is rotationally symmetric like the grooves, and the arm just sits there.
 - **What turns** — the cover art label, and the wipe marks on the vinyl around
   it — goes in the **window logo** layer, one disc-sized frame per rotation
   step, streamed as the record spins.
@@ -37,6 +40,11 @@ turn at all. What you actually see move on a turntable is the label and the
 scuffs sweeping through the light — so those are exactly what gets streamed. The
 frames carry only those, transparent everywhere else, which keeps them at
 ~190 KB even though they are disc-sized.
+
+The one place the two layers have to agree is the tonearm: it lives in the
+background layer but sits visually *above* the vinyl, so the streamed glints
+are masked out under its footprint — otherwise a scuff would sweep across the
+top of the arm and put the record above it.
 
 Everything goes over kitty's remote-control socket as pre-encoded bytes, so the
 animation loop does one `sendall` per frame — no image work at frame time.
@@ -79,14 +87,15 @@ Turn it down with fewer frames or a smaller disc:
 
 | flag | default | |
 |---|---|---|
-| `--size` | 78% of the window | record diameter in device pixels |
+| `--size` | 62% of the window with the turntable, 78% without | record diameter in device pixels |
 | `--opacity` | `0.62` desk, `0.47` bare | how strongly the background shows through |
 | `--label-opacity` | `0.85` | opacity of the cover art |
 | `--blur` | `3.0` | device pixels of blur over the desk and the record, so text reads more easily on top; the cover art is never blurred. `0` is a sharp record |
 | `--frames` | `75` | rotation steps per revolution; more is smoother but costs a longer render on every track change |
 | `--wipe` | `1.0` | how strongly the wipe marks catch the light as the record turns; `0` is a pristine pressing |
 | `--rpm` | `12.0` | turntable speed; fps = frames x rpm / 60. Well under the `33.3333` of a real LP, which at this size on screen reads as frantic |
-| `--no-desk` | | drop the wood, just the record as before |
+| `--no-turntable` | | the record straight on the desk, no deck under it |
+| `--no-desk` | | drop the wood and the deck, just the record as before |
 | `--light` | `0` | bars of light across the desk: `0` evenly lit, `1` full sun through a blind |
 | `--desk-brightness` | `1.0` | scales how brightly the desk is lit; below `1` is darker wood and more contrast under the text |
 | `--desk-seed` | `7` | reshuffles the wood grain |

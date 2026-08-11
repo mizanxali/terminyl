@@ -135,13 +135,17 @@ def parse_window(value: str) -> tuple[int, int]:
     return int(m.group(1)), int(m.group(2))
 
 
-def choose_size(requested: int | None, window: tuple[int, int] | None) -> tuple[int, str]:
+def choose_size(requested: int | None, window: tuple[int, int] | None,
+                deck: bool = False) -> tuple[int, str]:
+    # The deck needs room around the record -- the plinth reaches ~1.5 radii
+    # past the spindle -- so the disc gives up some of the window to it.
+    frac = 0.62 if deck else 0.78
     if requested:
         return requested, "requested"
     if window:
-        px = int(min(window) * 0.78)
+        px = int(min(window) * frac)
         return max(420, min(px - px % 2, 1400)), f"auto from {window[0]}x{window[1]}px window"
-    return 900, "default (could not measure the window)"
+    return 700 if deck else 900, "default (could not measure the window)"
 
 
 # --------------------------------------------------------------------------
@@ -154,7 +158,8 @@ class Vinyl:
         self.rc = kitty_rc.KittyRC(args.socket_glob)
         self.fps = max(1.0, args.frames * args.rpm / 60.0)
         self.window = args.window or window_pixels()
-        self.size, self.size_why = choose_size(args.size, self.window)
+        self.deck = args.desk and args.turntable
+        self.size, self.size_why = choose_size(args.size, self.window, self.deck)
         self.label_d = render.label_diameter(self.size)
 
         self._lock = threading.Lock()
@@ -219,7 +224,7 @@ class Vinyl:
 
         pngs, _sheen = render.render_spin_frames(
             art, self.size, self.args.frames, self.args.label_opacity,
-            background_opacity(self.args), wipe=self.args.wipe
+            background_opacity(self.args), wipe=self.args.wipe, turntable=self.deck
         )
         blobs = [kitty_rc.encode_logo(p, alpha=1.0, match=self.args.match) for p in pngs]
 
@@ -240,8 +245,9 @@ class Vinyl:
             png = render.render_desk(w, h, self.size, opacity,
                                      light=self.args.light, seed=self.args.desk_seed,
                                      brightness=self.args.desk_brightness,
-                                     blur=self.args.blur)
-            what = f"desk {w}x{h}px, disc {self.size}px ({self.size_why})"
+                                     blur=self.args.blur, turntable=self.deck)
+            what = (f"{'turntable' if self.deck else 'desk'} {w}x{h}px, "
+                    f"disc {self.size}px ({self.size_why})")
         else:
             png = render.render_disc(self.size, opacity, blur=self.args.blur)
             what = f"disc {self.size}px ({self.size_why})"
@@ -384,20 +390,22 @@ def cmd_preview(args: argparse.Namespace) -> int:
         print(f"could not read Music ({exc}); using a placeholder label")
 
     window = args.window or window_pixels()
-    size, why = choose_size(args.size, window)
+    deck = args.desk and args.turntable
+    size, why = choose_size(args.size, window, deck)
     opacity = background_opacity(args)
     spin, _ = render.render_spin_frames(art, size, max(1, args.frames),
-                                        args.label_opacity, opacity, wipe=args.wipe)
+                                        args.label_opacity, opacity, wipe=args.wipe,
+                                        turntable=deck)
     # Any frame will do for a still; a later one shows the marks off the light
     # axis, which is a fairer picture of what most of a revolution looks like.
     turning = Image.open(io.BytesIO(spin[len(spin) // 3])).convert("RGBA")
 
     if args.desk:
         w, h = window or FALLBACK_WINDOW
-        print(f"desk {w}x{h}px, disc {size}px ({why})")
+        print(f"{'turntable' if deck else 'desk'} {w}x{h}px, disc {size}px ({why})")
         png = render.render_desk(w, h, size, opacity, light=args.light,
                                  seed=args.desk_seed, brightness=args.desk_brightness,
-                                 blur=args.blur)
+                                 blur=args.blur, turntable=deck)
     else:
         print(f"disc {size}px ({why})")
         png = render.render_disc(size, opacity, blur=args.blur)
@@ -433,7 +441,8 @@ def main(argv: list[str] | None = None) -> int:
 
     look = argparse.ArgumentParser(add_help=False)
     look.add_argument("--size", type=int, default=None,
-                      help="record diameter in device pixels (default: 78%% of the window)")
+                      help="record diameter in device pixels (default: 62%% of the "
+                           "window with the turntable, 78%% without)")
     look.add_argument("--opacity", type=float, default=None,
                       help="0-1, how strongly the background shows through "
                            "(default: 0.62 with the desk, 0.47 without)")
@@ -458,6 +467,9 @@ def main(argv: list[str] | None = None) -> int:
                            "centered without)")
     look.add_argument("--no-desk", dest="desk", action="store_false",
                       help="just the record on the terminal background, no wooden desk")
+    look.add_argument("--no-turntable", dest="turntable", action="store_false",
+                      help="the record straight on the desk, no deck under it "
+                           "(implied by --no-desk)")
     look.add_argument("--light", type=float, default=0.0,
                       help="0-1, bars of light across the desk: 0 is evenly lit, "
                            "1 is full sun through a blind (default: %(default)s)")
