@@ -1,0 +1,4 @@
+#!/bin/sh
+# Launcher: runs vinyl.py inside the project's virtualenv from anywhere.
+here=$(cd "$(dirname "$0")" && pwd)
+exec "$here/.venv/bin/python" "$here/vinyl.py" "$@"

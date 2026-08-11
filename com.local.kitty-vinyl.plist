@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.kitty-vinyl</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mizanxali/vinyl/vinyl</string>
+        <string>run</string>
+        <!-- launchd gives no tty, so the window cannot be measured: set this. -->
+        <string>--size</string>
+        <string>900</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/kitty-vinyl.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/kitty-vinyl.log</string>
+</dict>
+</plist>
