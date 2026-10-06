@@ -1,3 +1,9 @@
+
+
+https://github.com/user-attachments/assets/09f3c1ec-9dc4-4732-81e5-daac3095db06
+
+
+
 # kitty-vinyl
 
 A vinyl record spinning on a turntable behind your kitty terminal, standing on
